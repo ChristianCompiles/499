@@ -1,18 +1,22 @@
-#import random
-#import hashlib
-#import time
-from functools import reduce
-
+from charm.toolbox.ecgroup import ECGroup, ZR
+from charm.toolbox.eccurve import prime192v1
 from secrets import randbelow
-#import gmpy2
-from gmpy2 import mpz, is_prime, mpz_random
-#import math
-from math import isqrt
-#from typing import Optional
 from random import randrange
-from sympy import isprime, nextprime, primitive_root, randprime
+from math import isqrt
+RED = '\033[31m'
+RESET = '\033[0m'
 
-def discrete_log_bound(a, g, bounds):
+# from functools import reduce
+# import gmpy2
+# from gmpy2 import mpz, is_prime, mpz_random
+# #import math
+# #from typing import Optional
+# from sympy import isprime, nextprime, primitive_root, randprime
+# import random
+# import hashlib
+# import time
+
+def discrete_log_bound(target, gen, bounds):
     """
     Find the discrete log of a under base g within bounds using Pollard's Kangaroo algorithm
 
@@ -21,6 +25,8 @@ def discrete_log_bound(a, g, bounds):
     :param bounds: Bounds for discrete log search
     :return: Discrete log of a under base g
     """
+    a = int(target)
+    g = int(gen)
     width = bounds[1] - bounds[0]
     if width < 1000:
         return discrete_log_bound_brute(a, g, bounds)
@@ -43,7 +49,7 @@ def discrete_log_bound(a, g, bounds):
         H = ub * g
         c = ub
         for i in range(N):
-            r, e = M[hash(H) % k]
+            r, e = M[hash(int(H)) % k]
             H = H + e
             c += r
 
@@ -81,41 +87,28 @@ def discrete_log_bound_brute(a, g, bounds):
 
 if __name__ == "__main__":
 
-    # Step 1: Pick a prime order q (the group size)
-    q = randprime(5,7)#randprime(10**2, 10**3)  # A prime between 100 and 1000
-    print(f"Prime order q: {q}")
+    group = ECGroup(prime192v1)
+    q = group.order() # get the order. 5
 
-    # Step 2: Find a prime p such that q divides p-1 (p will be our modulus)
-    p = q + 1
-    while not isprime(p):
-        p += q  # Increment by q until p is prime (ensures q divides p-1)
-    print(f"Modulus p: {p}, p-1: {p-1}")
-
-    # Step 3: Find a generator g of order q
-    # First, get a generator of Z_p^* (order p-1)
-    g_full = primitive_root(p)
-    # Raise it to (p-1)/q to get an element of order q
-    g = pow(g_full, (p-1)//q, p)
-    print(f"Generator g: {g}")
-
-    # Verify: g^q mod p should be 1, and no smaller power should be
-    assert pow(g, q, p) == 1, "g^q != 1"
-    for k in range(1, q):
-        assert pow(g, k, p) != 1, f"g has order < q at k={k}"
-    print(f"Group is cyclic of order {q} with generator {g}")
+    print(f'\norder: {q}\n')
+    g = group.random() # random generator. 4
+    print(f'generator: {g}\n')
 
     n_C = 3 # number of clients
     data = [[1] for _ in range(n_C)]
-    print(f'data: {data}')
+    print(f'Data: {data}\n')
 
     # step a
-    private_nums = [max(1, randbelow(q)) for _ in range(n_C)] # step a
-    print(f'private_nums: {private_nums}')
+    private_nums = [max(1, randbelow(int(q))) for _ in range(n_C)] # step a
+    print(f'private_nums: {private_nums}\n')
 
-    # step b (skipped)
+    # step b
+
+    public_keys = [g**p_n for p_n in private_nums] # not using these values since using reduced equation
 
     # step c
     gy = []
+    yi = []
 
     for sat_num in range(n_C):
         left = 0
@@ -127,40 +120,42 @@ if __name__ == "__main__":
                 right  += private_nums[j]
       
         my_sum = left-right
-        print(f'{left}-{right}= {my_sum}')
+        yi.append(my_sum)
+        print(f'{left} - {right} =\n{my_sum}')
         gyi = g**my_sum
-        print(f'gyi: {gyi}')
+        print(f'gyi: {gyi}\n')
         gy.append(gyi)
     
-    print(f'g^y: {gy}')
+    print(f'g^y: {gy}\n')
                 
     # Step d
-    secret_keys = [max(1,randbelow(q)) for _ in range(n_C)]
+    secret_keys = [randbelow(int(q)) for _ in range(n_C)]#[max(1,randbelow(int(q))) for _ in range(n_C)]
 
-    print(f'secret keys: {secret_keys}')
+    print(f'secret keys: {secret_keys}\n')
 
-    subset_aggregation_keys = []
+    partial_agg_key = []
     for i in range(n_C):
-        num = (g **secret_keys[i])  * (gy[i]** private_nums[i])
-        subset_aggregation_keys.append(num)
+        num = g** (secret_keys[i] + (private_nums[i] * yi[i]))    #(g ** secret_keys[i])  * (gy[i] ** private_nums[i])
+        partial_agg_key.append(num)
 
-    print(f'subset agg. keys: {subset_aggregation_keys}')
-    
+    print(f'subset agg. keys: {partial_agg_key}\n')
     
     # Step e
     aggregation_key = 1 # a.k.a AK_AS
 
     for i in range(n_C):
-        aggregation_key *= subset_aggregation_keys[i]
+        aggregation_key *= partial_agg_key[i]
 
-    print(f'agg. key {aggregation_key}')
+    print(f'agg. key {aggregation_key}\n')
 
     check_agg = g ** (sum(secret_keys))
+
+    print(f'check_agg: {check_agg}')
 
     if (aggregation_key == check_agg):
         print('Aggregation key is correct')
     else:
-        print('Aggregation key is incorrect)')
+        print(f'{RED}Aggregation key is incorrect.{RESET}')
 
     # Step 2
 
