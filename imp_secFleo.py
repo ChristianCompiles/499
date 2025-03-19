@@ -1,109 +1,27 @@
 from charm.toolbox.ecgroup import ECGroup, ZR
 from charm.toolbox.eccurve import prime192v1
 from secrets import randbelow
-from random import randrange
-from math import isqrt
-from sage.all import discrete_log, GF
+#from random import randrange
+#from sage.all import discrete_log, GF
+import math
+import time
 
-RED = '\033[31m'
-RESET = '\033[0m'
-
-#import gmpy2
-# from functools import reduce
-# import gmpy2
-# , is_prime, mpz_random
-# #import math
-# #from typing import Optional
-# from sympy import isprime, nextprime, primitive_root, randprime
-# import random
-# import hashlib
-# import time
-
-# def discrete_log_bound(target, gen, bounds):
-#     """
-#     Find the discrete log of a under base g within bounds using Pollard's Kangaroo algorithm
-
-#     :param a: Target element
-#     :param g: Base element
-#     :param bounds: Bounds for discrete log search
-#     :return: Discrete log of a under base g
-#     """
-#     a = int(target)
-#     g = int(gen)
-#     width = bounds[1] - bounds[0]
-#     if width < 1000:
-#         return discrete_log_bound_brute(a, g, bounds)
-
-#     lb = bounds[0]
-#     ub = bounds[1]
-
-#     N = isqrt(width) + 1
-
-#     M = {}
-#     for iterations in range(10):
-#         # random walk function setup
-#         k = 0
-#         while 2 ** k < N:
-#             #print("here 1")
-#             r = randrange(1, N)
-#             M[k] = (r, r * g)
-#             k += 1
-
-#         # first random walk
-#         H = ub * g
-#         c = ub
-#         for i in range(N):
-#             r, e = M[hash(int(H)) % k]
-#             H = H + e
-#             c += r
-#             #print("here 2")
-
-#         ori = H
-
-#         # second random walk
-#         H = a
-#         d = 0
-#         while c - d >= lb:
-#             if ub > c - d and H == ori:
-#                 return c - d
-#             r, e = M[hash(H) % k]
-#             H = H + e
-#             d += r
-
-#     return discrete_log_bound_brute(a, g, bounds)
-
-# def discrete_log_bound_brute(a, g, bounds):
-#     """
-#     Find the discrete log of a under base g within bounds using brute force
-
-#     :param a: Target element
-#     :param g: Base element
-#     :param bounds: Bounds for discrete log search
-#     :return: Discrete log of a under base g
-#     """
-#     cul = bounds[0] * g
-#     for i in range(bounds[1] - bounds[0] + 1):
-#         if cul == a:
-#             ans = i + bounds[0]
-#             return ans
-#         cul = (cul + g)
-#     raise Exception(f"Discrete log for {a} under base {g} not found in bounds ({bounds[0]}, {bounds[1]})")
 
 if __name__ == "__main__":
 
-    group = ECGroup(prime192v1)
-    q = 5 #group.order() # get the order. or use 5
+    #group = ECGroup(prime192v1)
+    q = 5 #group.order() # ORDER
 
-    print(f'\norder: {q}\n')
-    g = 4 # group.random() # random generator. or use 4
-    print(f'generator: {g}\n')
+    print(f'\norder: {q}')
+    g = 4 # group.random() # GENERATOR
+    print(f'generator: {g}')
 
-    n_C = 3 # number of clients (each client is in its own orbit)
-    data = [[1] for _ in range(n_C)]
+    n_C = 5 # number of clients (each client is in its own orbit)
+    data = [[0.7] for _ in range(n_C)]
     print(f'data: {data}\n')
 
     # step a
-    private_nums = [randbelow(int(q)) for _ in range(n_C)] # step a
+    private_nums =  [3 for _ in range(n_C)] # step a
     print(f'private_nums: {private_nums}\n')
 
     # step b
@@ -125,9 +43,9 @@ if __name__ == "__main__":
       
         my_sum = left-right
         yi.append(my_sum)
-        print(f'{left} - {right} =\n{my_sum}')
+        #print(f'{left} - {right} =\n{my_sum}')
         gyi = g**my_sum
-        print(f'gyi_reduced: {gyi}\n')
+        #print(f'gyi_reduced: {gyi}\n')
         gy_reduced.append(gyi)
 
     print(f'g^y: {gy_reduced}\n')
@@ -142,16 +60,16 @@ if __name__ == "__main__":
                 denominator *= g**private_nums[j]
 
         division = numerator / denominator
-        print(f'{numerator} / {denominator} =\n{division}')
+        #print(f'{numerator} / {denominator} =\n{division}')
         
         gy_original.append(division)
-        print(f'gyi_original: {gy_original[sat_num]}\n')
+        #print(f'gyi_original: {gy_original[sat_num]}\n')
     
     # compare original vs reduced:
     assert gy_original == gy_reduced, "should have same shared key derivation"
                 
     # Step d
-    secret_keys = [randbelow(int(q)) for _ in range(n_C)]#[max(1,randbelow(int(q))) for _ in range(n_C)]
+    secret_keys = [2 for _ in range(n_C)]
     print(f'secret keys: {secret_keys}\n')
 
     prop_1_check = sum([private_nums[i]*yi[i] for i in range(n_C)] )
@@ -160,7 +78,7 @@ if __name__ == "__main__":
 
     partial_agg_key = []
     for i in range(n_C):
-        num = g** (secret_keys[i] + (private_nums[i] * yi[i]))    #(g ** secret_keys[i])  * (gy[i] ** private_nums[i])
+        num = g** (secret_keys[i] + (private_nums[i] * yi[i]))
         partial_agg_key.append(num)
 
     print(f'subset agg. keys: {partial_agg_key}\n')
@@ -183,26 +101,29 @@ if __name__ == "__main__":
 
     cipher_data = []
     
+    start_enc_time = time.time()
     for i in range(n_C):
         enc_data = g**(secret_keys[i] + data[i][0])
         cipher_data.append(enc_data)
 
+    end_enc_time = time.time()
+
+    print(f'time to encrypt {len(data)} data: {end_enc_time - start_enc_time}sec')
+
     print(f'enc data: {cipher_data}')
 
-    # step 3
+    # step 3c
     agg_model_param: int
 
     exp_sum = sum(cipher_data)
     print(f'exp_sum: {exp_sum}')
 
-    agg_model = g**exp_sum
-    print(f'agg. model: {agg_model}')
-    print(f'num digits: {len(str(agg_model))}')
+    weighted_agg = math.prod(cipher_data) / aggregation_key
+    print(f'before finding exp and averaging: {weighted_agg}')
 
-    # width1 = 10000000000000000000
-    # width2 = 100000000000000000
+    exp = math.log(weighted_agg, g)#  discrete_log(GF(q)(weighted_agg), GF(q)(g))
+    print(f'the exp is: {exp}')
 
-    # print(f'width: {width1-width2}')
-    result = discrete_log(GF(q)(agg_model), GF(q)(g)) #discrete_log_bound(16, 2, (0, 10))
-
-    print(f'result: {result}')
+    exp_avg = exp / len(data)
+    print(f'the average of the data is: {exp_avg}')
+    
