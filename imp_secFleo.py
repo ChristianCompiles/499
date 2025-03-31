@@ -1,5 +1,5 @@
 from charm.toolbox.ecgroup import ECGroup, ZR
-from charm.toolbox.eccurve import prime192v1
+from charm.toolbox.eccurve import prime192v1, prime239v1, secp224k1
 from secrets import randbelow
 #from random import randrange
 #from sage.all import discrete_log, GF
@@ -9,19 +9,25 @@ import time
 
 if __name__ == "__main__":
 
-    #group = ECGroup(prime192v1)
-    q = 5 #group.order() # ORDER
+    TESTING_BIG = False
+
+    if TESTING_BIG is True:
+        group = ECGroup(secp224k1) #ECGroup(prime192v1)
+        q = group.order()
+        g = group.random()
+    else:
+        q = 5 
+        g = 4
 
     print(f'\norder: {q}')
-    g = 4 # group.random() # GENERATOR
     print(f'generator: {g}')
 
-    n_C = 5 # number of clients (each client is in its own orbit)
-    data = [[0.7] for _ in range(n_C)]
+    n_C = 3 # number of clients (each client is in its own orbit)
+    data = [[0.5] for _ in range(n_C)]
     print(f'data: {data}\n')
 
     # step a
-    private_nums =  [3 for _ in range(n_C)] # step a
+    private_nums = [3 for _ in range(n_C)] # step a
     print(f'private_nums: {private_nums}\n')
 
     # step b
@@ -48,7 +54,7 @@ if __name__ == "__main__":
         #print(f'gyi_reduced: {gyi}\n')
         gy_reduced.append(gyi)
 
-    print(f'g^y: {gy_reduced}\n')
+    print(f'g^y reduced: {gy_reduced}\n')
 
     for sat_num in range(n_C):
         numerator = 1
@@ -63,7 +69,7 @@ if __name__ == "__main__":
         #print(f'{numerator} / {denominator} =\n{division}')
         
         gy_original.append(division)
-        #print(f'gyi_original: {gy_original[sat_num]}\n')
+    print(f'gyi_original: {gy_original}\n')
     
     # compare original vs reduced:
     assert gy_original == gy_reduced, "should have same shared key derivation"
