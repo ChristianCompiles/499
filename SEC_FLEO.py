@@ -12,17 +12,17 @@ if __name__ == "__main__":
 
     if TESTING_BIG is True:
         group = ECGroup(secp224k1) #ECGroup(prime192v1)
-        q = int(group.order())
-        g = int(group.random())
+        q = mpmath.mpf(str(group.order()))
+        g = mpmath.mpf(str(group.random()))
     else:
-        q = mpmath.mp.mpf(4.0)
-        g = mpmath.mp.mpf(5.0)
+        q = mpmath.mpf(2**50) # 51
+        g = mpmath.mpf(2**224) # 224
 
     print(f'\norder: {q}')
     print(f'generator: {g}')
 
     n_C = 10 # number of clients (each client is in its own orbit)
-    data = numpy.random.rand(n_C) # [mpmath.mpf(0.75) for _ in range(n_C)]
+    data = [mpmath.mpf(0.75) for _ in range(n_C)] # numpy.random.rand(n_C) # 
     print(f'data: {data}\n')
 
     # step a
@@ -34,10 +34,7 @@ if __name__ == "__main__":
 
     timea = time.time()
     public_keys = [g**p_n for p_n in x_in]
-    timeb = time.time()
-
-    print(f'time to make keys: {timeb-timea}')
-
+    
     # step c
     gy_original = [] # shared keys using original method
     #gy_reduced = [] # shared keys using reduced method   
@@ -105,7 +102,10 @@ if __name__ == "__main__":
     # a.k.a AK_AS
     aggregation_key = math.prod(partial_agg_key)
 
+    timeb = time.time()
+
     print(f'agg. key {aggregation_key}\n')
+    print(f'time to make keys: {timeb-timea}')
 
     # check_agg = g ** (sum(secret_keys))
 
@@ -118,6 +118,7 @@ if __name__ == "__main__":
     cipher_data = []
     
     start_enc_time = time.time()
+
     for i in range(n_C):
         enc_data = g**(secret_keys[i] + mpmath.mpf(data[i]))
         cipher_data.append(enc_data)
